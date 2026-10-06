@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MCP — Theory and Commands Reference</title>
+  <meta name="description"
+    content="Model Context Protocol reference: architecture, transports, lifecycle, primitives, and the commands that actually run. Verified against modelcontextprotocol.io, protocol version 2026-07-28.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="shell">
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand__mark"></span>
+        <span>Model Context Protocol</span>
+        <span class="brand__ver">2026-07-28</span>
+      </div>
+    </header>
+
+    <div class="layout">
+
+      <nav class="rail" aria-label="Sections">
+        <div class="rail__label">Index</div>
+        <a href="#architecture"><span class="rail__num">01</span> Architecture</a>
+        <a href="#transports"><span class="rail__num">02</span> Transports</a>
+        <a href="#protocol"><span class="rail__num">03</span> Lifecycle</a>
+        <a href="#primitives"><span class="rail__num">04</span> Primitives</a>
+        <a href="#operations"><span class="rail__num">05</span> Operations</a>
+        <div class="rail__foot">
+        </div>
+      </nav>
+
+      <main class="main">
+
+        <!-- ============ HERO ============ -->
+        <div class="hero">
+          <canvas id="scene" aria-hidden="true"></canvas>
+
+          <div class="pin pin--host">
+            <div class="pin__box"><i class="pin__dot"></i>MCP Host</div>
+          </div>
+          <div class="pin pin--stdio">
+            <div class="pin__box"><i class="pin__dot"></i>Server <span class="pin__sub">stdio</span></div>
+          </div>
+          <div class="pin pin--http">
+            <div class="pin__box"><i class="pin__dot"></i>Server <span class="pin__sub">http</span></div>
+          </div>
+          <div class="pin pin--client">
+            <div class="pin__box"><i class="pin__dot"></i>Client</div>
+          </div>
+
+          <div class="hero__inner">
+            <h1>One protocol,<br><em>many</em> tools.</h1>
+            <p class="hero__lede">
+              The Model Context Protocol replaces a pile of bespoke plugin systems with a single
+              JSON-RPC contract between an AI application and the tools it is allowed to reach.
+              This page covers the theory, the wire format, and the commands.
+            </p>
+            <div class="hero__stats">
+              <div>
+                <div class="stat__k">Layer 1</div>
+                <div class="stat__v">JSON-RPC 2.0</div>
+              </div>
+              <div>
+                <div class="stat__k">Layer 2</div>
+                <div class="stat__v">2 transports</div>
+              </div>
+              <div>
+                <div class="stat__k">Primitives</div>
+                <div class="stat__v">tools / res / prompts</div>
+              </div>
+              <div>
+                <div class="stat__k">Discovery</div>
+                <div class="stat__v">server/discover</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ 01 ARCHITECTURE ============ -->
+        <section class="block" id="architecture" data-group>
+          <header data-searchable>
+            <div class="sec-num">01 / ARCHITECTURE</div>
+            <h2>Three participants, one direction of power</h2>
+            <p class="lede">
+              MCP is a client–server protocol. The host is the AI application you talk to. It spawns
+              one client per server. Each client owns exactly one connection. That 1:1 mapping is the
+              whole reason permission, logging, and trust stay tractable.
+            </p>
+          </header>
+
+          <div class="diag" data-searchable>
+            <div class="node">
+              <h4>MCP Host</h4>
+              <small>The AI application. Manages the conversation, decides which clients exist, and surfaces tools to
+                the user.</small>
+            </div>
+            <div class="hop">spawns</div>
+            <div class="fanout">
+              <div class="node">
+                <h4>Client 01</h4><small>One connection. Tools list, calls, roots.</small>
+              </div>
+              <div class="node">
+                <h4>Client 02</h4><small>Another connection, another server, isolated.</small>
+              </div>
+            </div>
+            <div class="hop">connects</div>
+            <div class="fanout">
+              <div class="node">
+                <h4>Server · local</h4><small>Subprocess, stdio transport, inherits your OS identity.</small>
+              </div>
+              <div class="node">
+                <h4>Server · remote</h4><small>HTTP endpoint, Streamable HTTP transport, OAuth boundary.</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-3" style="margin-top:24px">
+            <article class="card" data-searchable>
+              <div class="card__tag"><b>HOST</b> · VS Code, Claude Code, Claude Desktop</div>
+              <p>Coordinates clients. Owns the user session. Decides which tools appear and whether a call needs
+                approval.</p>
+            </article>
+            <article class="card" data-searchable>
+              <div class="card__tag"><b>CLIENT</b> · protocol-level, 1:1</div>
+              <p>A connection object, not a separate product. It exists so a host can hold N independent sessions
+                without them sharing state.</p>
+            </article>
+            <article class="card" data-searchable>
+              <div class="card__tag"><b>SERVER</b> · any program</div>
+              <p>Exposes tools, resources, and prompts. "Server" describes the role, not the location — local and remote
+                are both servers.</p>
+            </article>
+          </div>
+
+          <div class="note" data-searchable>
+            <strong>The direction rule.</strong> Clients send requests and notifications to servers. Servers send
+            responses and notifications to clients. No other combination is legal: a server may not open a
+            JSON-RPC request against a client, and a client may not send a bare response. This is what makes
+            servers safe to run — they cannot drive the conversation, they can only answer.
+          </div>
+
+          <div class="grid grid-2" style="margin-top:18px">
+            <article class="card" data-searchable>
+              <div class="card__tag">Data layer <span class="chip chip--new">inner</span></div>
+              <p>Discovery, capability negotiation, primitives, notifications. Identical on every transport. Encoded as
+                JSON-RPC 2.0, UTF-8.</p>
+            </article>
+            <article class="card" data-searchable>
+              <div class="card__tag">Transport layer <span class="chip">outer</span></div>
+              <p>How bytes are framed and delivered, where request metadata rides, and how a pending request is
+                abandoned. A transport is only a binding.</p>
+            </article>
+          </div>
+        </section>
+
+        <!-- ============ 02 TRANSPORTS ============ -->
+        <section class="block" id="transports" data-group>
+          <header data-searchable>
+            <div class="sec-num">02 / TRANSPORTS</div>
+            <h2>Two bindings ship. Everything else is yours.</h2>
+            <p class="lede">
+              A transport defines framing, metadata, and cancellation. It does not define meaning. Pick
+              stdio for anything local, Streamable HTTP for anything shared.
+            </p>
+          </header>
+
+          <div class="tbl-wrap" data-searchable>
+            <table>
+              <thead>
+                <tr>
+                  <th>Property</th>
+                  <th>stdio</th>
+                  <th>Streamable HTTP</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Framing</td>
+                  <td>Newline-delimited JSON on a client-launched subprocess</td>
+                  <td>One HTTP POST per message to a single MCP endpoint</td>
+                </tr>
+                <tr>
+                  <td>Reply shape</td>
+                  <td>Same stdout stream</td>
+                  <td>JSON object, or a request-scoped SSE stream</td>
+                </tr>
+                <tr>
+                  <td>Typical scope</td>
+                  <td>One server, one client, one machine</td>
+                  <td>Many clients, many machines</td>
+                </tr>
+                <tr>
+                  <td>Version header</td>
+                  <td>Not applicable</td>
+                  <td><code>MCP-Protocol-Version</code></td>
+                </tr>
+                <tr>
+                  <td>Cancellation</td>
+                  <td><code>notifications/cancelled</code></td>
+                  <td>Close the response stream</td>
+                </tr>
+                <tr>
+                  <td>Auth</td>
+                  <td>Process boundary. Inherits your OS identity.</td>
+                  <td>OAuth 2.1, resource metadata per RFC 9728</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="code" data-searchable>
+            <div class="code__bar"><span class="code__name">stdio · one line per message</span><button
+                class="copy">copy</button></div>
+            <pre><span class="p">{"jsonrpc":"2.0","id":1,"method":"tools/list"}</span>
+<span class="p">{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"add"}]}}</span>
+<span class="c">// one JSON object per line, stdin → stdout, UTF-8. stdout is protocol.</span>
+<span class="c">// Anything you print to stdout for humans corrupts the stream — log to stderr.</span></pre>
+          </div>
+
+          <div class="code" data-searchable>
+            <div class="code__bar"><span class="code__name">streamable http · one endpoint</span><button
+                class="copy">copy</button></div>
+            <pre><span class="n">POST</span> /mcp HTTP/1.1
+<span class="k">Accept:</span> application/json, text/event-stream
+<span class="k">Content-Type:</span> application/json
+<span class="k">MCP-Protocol-Version:</span> <span class="s">2026-07-28</span>
+
+<span class="p">{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"add","arguments":{"a":1,"b":2}}}</span></pre>
+          </div>
+
+          <div class="note note--warn" data-searchable>
+            <strong>A local stdio server runs with your permissions.</strong> It is a subprocess you approved.
+            Review the command before trusting it — the trust prompt is the only gate between an arbitrary
+            program and your filesystem, network, and credentials.
+          </div>
+        </section>
+
+        <!-- ============ 03 LIFECYCLE ============ -->
+        <section class="block" id="protocol" data-group>
+          <header data-searchable>
+            <div class="sec-num">03 / LIFECYCLE</div>
+            <h2>Discovery, then traffic</h2>
+            <p class="lede">
+              In revision <code>2026-07-28</code> the initialize handshake is gone. Discovery is a single
+              mandatory RPC, and the protocol version is declared per request rather than pinned to a session.
+            </p>
+          </header>
+
+          <div class="code" data-searchable>
+            <div class="code__bar"><span class="code__name">discovery · server/discover</span><button
+                class="copy">copy</button></div>
+            <pre><span class="c">// client → server. Mandatory RPC. Optional to call: any request may be sent directly.</span>
+<span class="p">{ "jsonrpc": "2.0", "id": 1, "method": "server/discover" }</span>
+
+<span class="c">// server → client. Illustrative shape, trimmed to the fields that matter.</span>
+<span class="p">{
+  "protocolVersions": [<span class="s">"2026-07-28"</span>],
+  "capabilities": { "tools": { "listChanged": <span class="n">true</span> } },
+  "serverInfo": { "name": <span class="s">"demo"</span>, "version": <span class="s">"1.0.0"</span> }
+}</span></pre>
+          </div>
+
+          <div class="code" data-searchable>
+            <div class="code__bar"><span class="code__name">per-request metadata · _meta</span><button
+                class="copy">copy</button></div>
+            <pre><span class="p">{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "meta": { "io.modelcontextprotocol/protocolVersion": <span class="s">"2026-07-28"</span> },
+  "params": { "name": "add", "arguments": { "a": 1, "b": 2 } }
+}</span>
+<span class="c">// The server accepts or rejects each request independently.</span>
+<span class="c">// Mismatch → UnsupportedProtocolVersionError listing supported versions.</span></pre>
+          </div>
+
+          <div class="tbl-wrap" data-searchable>
+            <table>
+              <thead>
+                <tr>
+                  <th>Message</th>
+                  <th>Direction</th>
+                  <th>Has id</th>
+                  <th>Expects</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="meth">Request</span></td>
+                  <td><span class="dir dir--c">client → server</span></td>
+                  <td>yes</td>
+                  <td>Exactly one result or error</td>
+                </tr>
+                <tr>
+                  <td><span class="meth">Response</span></td>
+                  <td><span class="dir dir--s">server → client</span></td>
+                  <td>echoed</td>
+                  <td>Nothing — it closes the request</td>
+                </tr>
+                <tr>
+                  <td><span class="meth">Notification</span></td>
+                  <td><span class="dir">either</span></td>
+                  <td>no</td>
+                  <td>Nothing. Fire and forget.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="grid grid-2" style="margin-top:18px">
+            <div class="tbl-wrap" style="margin:0" data-searchable>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Meaning</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>-32700</code></td>
+                    <td>Parse error — invalid JSON</td>
+                  </tr>
+                  <tr>
+                    <td><code>-32600</code></td>
+                    <td>Invalid request</td>
+                  </tr>
+                  <tr>
+                    <td><code>-32601</code></td>
+                    <td>Method not found</td>
+                  </tr>
+                  <tr>
+                    <td><code>-32602</code></td>
+                    <td>Invalid params — schema violation</td>
+                  </tr>
+                  <tr>
+                    <td><code>-32603</code></td>
+                    <td>Internal error</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <article class="card" data-searchable>
+              <div class="card__tag">Backward compatibility</div>
+              <p>Revisions <code>2025-11-25</code> and earlier used an <code>initialize</code> handshake that opened a
+                connection-scoped session and let servers send requests. Modern peers detect the counterpart's era
+                and fall back. Implement both if you must serve old hosts.</p>
+            </article>
+          </div>
+
+          <div class="note" data-searchable>
+            <strong>Cancellation is transport-specific, and that is the only difference.</strong> Over stdio the
+            client sends <code>notifications/cancelled</code>. Over Streamable HTTP it closes the response
+            stream. The protocol rules afterwards are identical everywhere.
+          </div>
+        </section>
+
+        <!-- ============ 04 PRIMITIVES ============ -->
+        <section class="block" id="primitives" data-group>
+          <header data-searchable>
+            <div class="sec-num">04 / PRIMITIVES</div>
+            <h2>Who gets to decide</h2>
+            <p class="lede">
+              Three server primitives, split by who controls them. That split is the design: a model may only
+              reach for what is model-controlled, and the user controls prompts.
+            </p>
+          </header>
+
+          <div class="tbl-wrap" data-searchable>
+            <table>
+              <thead>
+                <tr>
+                  <th>Primitive</th>
+                  <th>Controlled by</th>
+                  <th>Methods</th>
+                  <th>Reads / writes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Tools</strong></td>
+                  <td><span class="chip chip--live">model</span></td>
+                  <td><span class="meth">tools/list</span> <span class="meth">tools/call</span></td>
+                  <td>Writes. Databases, APIs, files.</td>
+                </tr>
+                <tr>
+                  <td><strong>Resources</strong></td>
+                  <td><span class="chip chip--live">application</span></td>
+                  <td><span class="meth">resources/list</span> <span class="meth">resources/read</span> <span
+                      class="meth">resources/templates/list</span></td>
+                  <td>Reads. Docs, schemas, calendars.</td>
+                </tr>
+                <tr>
+                  <td><strong>Prompts</strong></td>
+                  <td><span class="chip chip--live">user</span></td>
+                  <td><span class="meth">prompts/list</span> <span class="meth">prompts/get</span></td>
+                  <td>Templates the user picks explicitly.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="code" data-searchable>
+            <div class="code__bar"><span class="code__name">tools · list and call</span><button
+                class="copy">copy</button></div>
+            <pre><span class="p">{ "method": "tools/call", "params": {
+    "name": "searchFlights",
+    "arguments": { "origin": "NYC", "destination": "BCN", "date": "2026-08-14" }
+} }</span>
+
+<span class="c">// A tool is a JSON Schema plus a description. The description is the</span>
+<span class="c">// only thing that tells the model when to reach for it.</span>
+<span class="p">{ "name": "searchFlights",
+  "description": "Search for available flights",
+  "inputSchema": { "type": "object", "properties": {
+      "origin":      { "type": "string", "description": "Departure city" },
+      "destination": { "type": "string", "description": "Arrival city" },
+      "date":        { "type": "string", "format": "date" } },
+    "required": ["origin","destination","date"] } }</span></pre>
+          </div>
+
+          <div class="code" data-searchable>
+            <div class="code__bar"><span class="code__name">resources · uri and template</span><button
+                class="copy">copy</button></div>
+            <pre><span class="c">// Direct resource — a fixed URI with a declared MIME type.</span>
+<span class="p">calendar://events/2026</span>
+
+<span class="c">// Resource template — discovered via resources/templates/list.</span>
+<span class="p">travel://activities/{city}/{category}</span>
+<span class="p">travel://activities/barcelona/museums</span></pre>
+          </div>
+
+          <h3 style="margin-top:30px">Client features: asking the user</h3>
+          <div class="grid grid-3" style="margin-top:14px">
+            <article class="card" data-searchable>
+              <div class="card__tag"><b>ELICITATION</b> form + url</div>
+              <p>A server can pause mid-call and ask the user for input it could not know.
+                Form mode collects structured data; URL mode sends the user out of band, so the
+                data never touches the client. Uses the MRTR pattern — the server returns
+                <code>InputRequiredResult</code>, the client retries with the collected answers.
+              </p>
+            </article>
+            <article class="card" data-searchable>
+              <div class="card__tag"><b>SAMPLING</b> <span class="chip chip--dep">deprecated</span></div>
+              <p>Servers could request an LLM completion through the client, keeping permissions
+                and user control where they belong. Deprecated in <code>2026-07-28</code>. It stays in the
+                spec for at least twelve months while you migrate.</p>
+            </article>
+            <article class="card" data-searchable>
+              <div class="card__tag"><b>ROOTS</b> <span class="chip chip--dep">deprecated</span></div>
+              <p>Clients used to declare which directories a server should focus on. Also deprecated
+                in <code>2026-07-28</code>. Do not build new servers on it; use elicitation or explicit
+                arguments.</p>
+            </article>
+          </div>
+        </section>
+
+        <!-- ============ 05 OPERATIONS ============ -->
+        <section class="block" id="operations" data-group>
+          <header data-searchable>
+            <div class="sec-num">05 / OPERATIONS</div>
+            <h2>Run it, inspect it, register it</h2>
+            <p class="lede">
+              Build with the SDK, debug with the Inspector, register with a config file.
+              Python needs 3.10+.
+            </p>
+          </header>
+
+          <ol class="steps" data-searchable>
+            <li><b>Install the SDK</b>
+              <div class="code" style="margin:10px 0 0">
+                <div class="code__bar"><span class="code__name">python · cli extra adds mcp dev | run |
+                    install</span><button class="copy">copy</button></div>
+                <pre><span class="c"># uv (recommended)</span>
+<span class="k">uv add</span> <span class="s">"mcp[cli]"</span>
+
+<span class="c"># or plain pip</span>
+<span class="k">pip install</span> <span class="s">"mcp[cli]"</span>
+
+<span class="c"># one-off, no project</span>
+<span class="k">uv run --with</span> <span class="s">"mcp[cli]"</span> mcp dev server.py
+
+<span class="c"># typescript</span>
+<span class="k">npm install</span> <span class="s">@modelcontextprotocol/sdk</span></pre>
+              </div>
+            </li>
+            <li><b>Write a server — no schema, no request parsing, no protocol boilerplate</b>
+              <div class="code" style="margin:10px 0 0">
+                <div class="code__bar"><span class="code__name">python · server.py</span><button
+                    class="copy">copy</button></div>
+                <pre><span class="k">from</span> mcp.server <span class="k">import</span> MCPServer
+
+mcp = MCPServer(<span class="s">"Demo"</span>)
+
+<span class="n">@mcp.tool()</span>
+<span class="k">def</span> <span class="p">add</span>(a: <span class="k">int</span>, b: <span class="k">int</span>) -&gt; <span class="k">int</span>:
+    <span class="s">"""Add two numbers."""</span>
+    <span class="k">return</span> a + b
+
+<span class="n">@mcp.resource("greeting://{name}")</span>
+<span class="k">def</span> <span class="p">greeting</span>(name: <span class="k">str</span>) -&gt; <span class="k">str</span>:
+    <span class="s">"""Greet someone by name."""</span>
+    <span class="k">return</span> <span class="s">f"Hello, {name}!"</span></pre>
+              </div>
+            </li>
+            <li><b>Debug with the Inspector</b>
+              <div class="code" style="margin:10px 0 0">
+                <div class="code__bar"><span class="code__name">inspector</span><button class="copy">copy</button></div>
+                <pre><span class="c"># launches the MCP Inspector against a local script</span>
+<span class="k">uv run</span> mcp dev server.py
+
+<span class="c"># or attach the standalone inspector to any command</span>
+<span class="k">npx</span> -y <span class="s">@modelcontextprotocol/inspector</span> uvx mcp-server-fetch
+
+<span class="c"># call add with a=1 b=2 → you get 3 back</span></pre>
+              </div>
+            </li>
+            <li><b>Serve over HTTP, then drive it from a client</b>
+              <div class="code" style="margin:10px 0 0">
+                <div class="code__bar"><span class="code__name">streamable http · transport</span><button
+                    class="copy">copy</button></div>
+                <pre><span class="c"># serve; default port 8000, endpoint /mcp</span>
+<span class="k">uv run</span> mcp run server.py --transport streamable-http</pre>
+              </div>
+              <div class="code" style="margin:10px 0 0">
+                <div class="code__bar"><span class="code__name">python · client.py</span><button
+                    class="copy">copy</button></div>
+                <pre><span class="k">import</span> asyncio
+<span class="k">from</span> mcp <span class="k">import</span> Client
+
+<span class="k">async def</span> <span class="p">main</span>() -&gt; <span class="k">None</span>:
+    <span class="k">async with</span> Client(<span class="s">"http://localhost:8000/mcp"</span>) <span class="k">as</span> client:
+        result = <span class="k">await</span> client.call_tool(<span class="s">"add"</span>, {<span class="s">"a"</span>: <span class="n">1</span>, <span class="s">"b"</span>: <span class="n">2</span>})
+        <span class="k">print</span>(result.structured_content)
+
+asyncio.run(<span class="p">main</span>())</pre>
+              </div>
+            </li>
+            <li><b>Register with a host</b> — pick the file your host actually reads</li>
+          </ol>
+
+          <div class="tbl-wrap" data-searchable>
+            <table>
+              <thead>
+                <tr>
+                  <th>Host</th>
+                  <th>File</th>
+                  <th>Top-level key</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>VS Code — user profile</td>
+                  <td><code>%APPDATA%\Code\User\mcp.json</code></td>
+                  <td><code>servers</code></td>
+                </tr>
+                <tr>
+                  <td>VS Code — workspace</td>
+                  <td><code>.vscode/mcp.json</code> <span class="chip chip--dep">deprecated</span></td>
+                  <td><code>servers</code></td>
+                </tr>
+                <tr>
+                  <td>VS Code — portable</td>
+                  <td><code>.mcp.json</code></td>
+                  <td><code>mcpServers</code></td>
+                </tr>
+                <tr>
+                  <td>Copilot CLI / Agent Host</td>
+                  <td><code>~/.copilot/mcp-config.json</code></td>
+                  <td><code>mcpServers</code></td>
+                </tr>
+                <tr>
+                  <td>Claude Desktop (Windows)</td>
+                  <td><code>%APPDATA%\Claude\claude_desktop_config.json</code></td>
+                  <td><code>mcpServers</code></td>
+                </tr>
+                <tr>
+                  <td>Cursor</td>
+                  <td><code>~/.cursor/mcp.json</code></td>
+                  <td><code>mcpServers</code></td>
+                </tr>
+                <tr>
+                  <td>Codex CLI</td>
+                  <td><code>~/.codex/config.toml</code></td>
+                  <td><code>[mcp_servers.NAME]</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="code" data-searchable>
+            <div class="code__bar"><span class="code__name">mcp.json · local + remote in one file</span><button
+                class="copy">copy</button></div>
+            <pre>{
+  "servers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@microsoft/mcp-server-playwright"]
+    },
+    "sentry": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp"
+    }
+  }
+}</pre>
+          </div>
+
+          <div class="code" data-searchable>
+            <div class="code__bar"><span class="code__name">from the terminal, no file editing</span><button
+                class="copy">copy</button></div>
+            <pre><span class="k">code</span> --add-mcp <span class="s">"{\"name\":\"my-server\",\"command\":\"uvx\",\"args\":[\"my-mcp-server\"]}"</span></pre>
+          </div>
+
+          <div class="note note--warn" data-searchable>
+            <strong>Never commit a secret.</strong> Config files land in git. Use
+            <code>${input:apiKey}</code> input variables or an environment file, and keep the local
+            stdio command reviewable — anyone who reads the file can run it.
+          </div>
+
+          <div class="tbl-wrap" data-searchable>
+            <table>
+              <thead>
+                <tr>
+                  <th>Symptom</th>
+                  <th>Cause</th>
+                  <th>Fix</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>Spawn ENOENT</code></td>
+                  <td>Executable not found on PATH</td>
+                  <td>Absolute path, or a full package name after <code>-y</code></td>
+                </tr>
+                <tr>
+                  <td>Server starts, no tools</td>
+                  <td>Protocol chatter printed to stdout</td>
+                  <td>Move logging to stderr</td>
+                </tr>
+                <tr>
+                  <td>Method not found</td>
+                  <td>Client speaks an older revision</td>
+                  <td>Check <code>server/discover</code> output; support both eras</td>
+                </tr>
+                <tr>
+                  <td>HTTP hangs</td>
+                  <td>Wrong port, or POST without an SSE-capable Accept</td>
+                  <td>Hit <code>/mcp</code> directly; send the MCP-Protocol-Version header</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer class="foot">
+        </footer>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="js/scene.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+
+</html>
