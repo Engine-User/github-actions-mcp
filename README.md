@@ -3,6 +3,8 @@
 Exposes the GitHub surface (repo, files, issues, PRs, Actions runs, releases,
 webhooks, search, …) as MCP tools for a single configured repository.
 
+![MCP server architecture flow](architecture-flow.svg)
+
 ## 1. Configuration
 
 Create `.env` next to `main.py`:
