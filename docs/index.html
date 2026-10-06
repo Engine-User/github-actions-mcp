@@ -54,7 +54,7 @@
           </div>
 
           <div class="hero__inner">
-            <h1>One protocol,<br><em>many</em> tools.</h1>
+            <h1>One protocol,<br><em>multiple</em> tools.</h1>
             <p class="hero__lede">
               The Model Context Protocol replaces a pile of bespoke plugin systems with a single
               JSON-RPC contract between an AI application and the tools it is allowed to reach.
@@ -85,11 +85,11 @@
         <section class="block" id="architecture" data-group>
           <header data-searchable>
             <div class="sec-num">01 / ARCHITECTURE</div>
-            <h2>Three participants, one direction of power</h2>
+            <h2>Three components, one direction</h2>
             <p class="lede">
               MCP is a client–server protocol. The host is the AI application you talk to. It spawns
               one client per server. Each client owns exactly one connection. That 1:1 mapping is the
-              whole reason permission, logging, and trust stay tractable.
+              reason permission, logging, and trust stay tractable.
             </p>
           </header>
 
@@ -162,7 +162,7 @@
         <section class="block" id="transports" data-group>
           <header data-searchable>
             <div class="sec-num">02 / TRANSPORTS</div>
-            <h2>Two bindings ship. Everything else is yours.</h2>
+            <h2>Define your requirements.</h2>
             <p class="lede">
               A transport defines framing, metadata, and cancellation. It does not define meaning. Pick
               stdio for anything local, Streamable HTTP for anything shared.
@@ -364,7 +364,7 @@
         <section class="block" id="primitives" data-group>
           <header data-searchable>
             <div class="sec-num">04 / PRIMITIVES</div>
-            <h2>Who gets to decide</h2>
+            <h2>Who gets to decide?</h2>
             <p class="lede">
               Three server primitives, split by who controls them. That split is the design: a model may only
               reach for what is model-controlled, and the user controls prompts.
@@ -464,7 +464,7 @@
         <section class="block" id="operations" data-group>
           <header data-searchable>
             <div class="sec-num">05 / OPERATIONS</div>
-            <h2>Run it, inspect it, register it</h2>
+            <h2>Running and Inspection</h2>
             <p class="lede">
               Build with the SDK, debug with the Inspector, register with a config file.
               Python needs 3.10+.
