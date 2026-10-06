@@ -1,4 +1,4 @@
-# github-actions — MCP server for one GitHub repo
+# github-actions — MCP server for one/many GitHub repo(s)
 
 Exposes the GitHub surface (repo, files, issues, PRs, Actions runs, releases,
 webhooks, search, …) as MCP tools for a single configured repository.
