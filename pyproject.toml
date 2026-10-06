@@ -1,0 +1,23 @@
+[project]
+name = "github-actions"
+version = "0.1.0"
+description = "MCP server that exposes the full GitHub surface for one repo (repo, files, issues, PRs, Actions, releases, webhooks, search)"
+readme = "README.md"
+authors = [
+    { name = "Engine-User", email = "engineerbigfan@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "mcp>=2.3.0",
+    "pygithub>=2.10.0",
+    "python-dotenv>=1.2.4",
+]
+
+[tool.uv]
+# Single-file app, not a distributable package. Without this, `uv sync` demands
+# a src/<package>/__init__.py and the whole server would have to be split up.
+package = false
+
+[build-system]
+requires = ["uv_build>=0.12.18,<0.13.0"]
+build-backend = "uv_build"
