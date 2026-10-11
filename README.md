@@ -70,17 +70,17 @@ refuse to run until you pass `confirm=true`.
 
 | Area | Tools |
 | --- | --- |
-| Repo | `repo_info` `repo_settings` ✍`edit_repo` `repo_branches` `repo_tags` `repo_languages` `repo_topics` ✍`create_branch` ✍`create_tag` `repo_events` ✍`archive_repo` |
-| Files | `list_directory` `read_file` ✍`create_or_update_file` ✍`delete_file` `file_history` |
+| Repo | `repo_info` `repo_settings` `edit_repo` `repo_branches` `repo_tags` `repo_languages` `repo_topics` `create_branch` `create_tag` `repo_events` `archive_repo` |
+| Files | `list_directory` `read_file` `create_or_update_file` `delete_file` `file_history` |
 | Commits | `list_commits` `commit_detail` `compare_commits` |
-| Issues | ✍`create_issue` `list_issues` `get_issue` ✍`update_issue` ✍`comment_on_issue` `list_issue_comments` ✍`lock_issue` |
-| Labels/milestones | `list_labels` ✍`create_label` `list_milestones` ✍`create_milestone` |
-| Pull requests | ✍`create_pull_request` `list_pull_requests` `get_pull_request` ✍`update_pull_request` ✍`merge_pull_request` ✍`create_pull_review` ✍`request_reviewers` |
-| Releases | `list_releases` ✍`create_release` ✍`upload_release_asset` |
-| Actions | `list_workflows` `get_workflow` ✍`dispatch_workflow` `list_workflow_runs` `get_workflow_run` ✍`rerun_workflow` ✍`cancel_workflow_run` `run_logs` |
-| CI/CD | `list_check_runs` `combined_status` ✍`create_check_run` `list_deployments` |
-| Access/infra | `list_collaborators` ✍`add_collaborator` ✍`remove_collaborator` `list_webhooks` ✍`create_webhook` ✍`delete_webhook` `list_secrets` |
-| Search/user | `search_code` `search_issues` `search_users` `current_user` `list_gists` ✍`create_gist` |
+| Issues | `create_issue` `list_issues` `get_issue` `update_issue` `comment_on_issue` `list_issue_comments` `lock_issue` |
+| Labels/milestones | `list_labels` `create_label` `list_milestones` `create_milestone` |
+| Pull requests | `create_pull_request` `list_pull_requests` `get_pull_request` `update_pull_request` `merge_pull_request` `create_pull_review` `request_reviewers` |
+| Releases | `list_releases` `create_release` `upload_release_asset` |
+| Actions | `list_workflows` `get_workflow` `dispatch_workflow` `list_workflow_runs` `get_workflow_run` `rerun_workflow` `cancel_workflow_run` `run_logs` |
+| CI/CD | `list_check_runs` `combined_status` `create_check_run` `list_deployments` |
+| Access/infra | `list_collaborators` `add_collaborator` `remove_collaborator` `list_webhooks` `create_webhook` `delete_webhook` `list_secrets` |
+| Search/user | `search_code` `search_issues` `search_users` `current_user` `list_gists` `create_gist` |
 | Health | `whoami` |
 
 ## Behaviour contract
