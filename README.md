@@ -65,8 +65,7 @@ Start with `github-actions_whoami` when a call fails — it reports config, toke
 
 ## Tools by area (66)
 
-Read-only tools are safe to call at will. The 28 marked `✍` mutate the repository and
-refuse to run until you pass `confirm=true`.
+Read-only tools are safe to call at will. Some tools need explicit `confirm=true`.
 
 | Area | Tools |
 | --- | --- |
