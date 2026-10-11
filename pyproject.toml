@@ -1,6 +1,6 @@
 [project]
 name = "github-actions"
-version = "0.1.0"
+version = "2.0.0"
 description = "MCP server that exposes the full GitHub surface for one repo (repo, files, issues, PRs, Actions, releases, webhooks, search)"
 readme = "README.md"
 authors = [
@@ -13,6 +13,11 @@ dependencies = [
     "python-dotenv>=1.2.4",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=9.0.0",
+]
+
 [tool.uv]
 # Single-file app, not a distributable package. Without this, `uv sync` demands
 # a src/<package>/__init__.py and the whole server would have to be split up.
@@ -21,3 +26,10 @@ package = false
 [build-system]
 requires = ["uv_build>=0.12.18,<0.13.0"]
 build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+# testpaths matters: without it pytest walks whatever directory it is launched
+# from and collects unrelated projects.
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q"
